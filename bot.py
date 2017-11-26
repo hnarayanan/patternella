@@ -2,6 +2,7 @@ import tweepy
 import urllib2
 from PIL import Image
 
+import numpy as np
 import tensorflow as tf
 from style_transfer_tester import StyleTransferTester
 
@@ -28,7 +29,7 @@ class PatternellaStreamListener(tweepy.StreamListener):
 
         if has_photo:
             photo = Image.open(urllib2.urlopen(photo_url))
-            photo.save('input/{photo_id}.png'.format(photo_id=photo_id))
+            photo.save('input/{photo_id}.jpg'.format(photo_id=photo_id))
 
             # TODO: We need to grab the style from the style hashtag if it exists
             # style = status.entities['hashtags'][0]
@@ -38,13 +39,15 @@ class PatternellaStreamListener(tweepy.StreamListener):
                 transformer = StyleTransferTester(
                     session=self.sess,
                     model_path='style_models/{style}.ckpt'.format(style=style),
-                    content_image=photo,
+                    content_image=np.float32(photo),
                 )
                 transformed_photo = transformer.test()
-                photo.save('output/{photo_id}.png'.format(photo_id=photo_id))
-
+                transformed_photo = np.clip(transformed_photo, 0.0, 255.0)
+                transformed_photo = transformed_photo.astype(np.uint8)
+                transformed_photo = Image.fromarray(transformed_photo)
+                transformed_photo.save('output/{photo_id}.jpg'.format(photo_id=photo_id))
                 tweet = "@{sender} Here you go!".format(sender=sender)
-                self.api.update_with_media('output/{photo_id}.png'.format(photo_id=photo_id), status=tweet)
+                self.api.update_with_media('output/{photo_id}.jpg'.format(photo_id=photo_id), status=tweet)
             except:
                 tweet = "@{sender} I'm sorry. Something went wrong with cutening your photo.".format(sender=sender)
                 try:
@@ -67,7 +70,7 @@ auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
 auth.set_access_token(access_token, access_token_secret)
 api = tweepy.API(auth)
 
-soft_config = tf.ConfigProto(allow_soft_placement=True)
+soft_config = tf.ConfigProto(allow_soft_placement=True, device_count = {'GPU': 0})
 soft_config.gpu_options.allow_growth = True
 sess = tf.Session(config=soft_config)
 
