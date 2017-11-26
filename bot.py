@@ -1,5 +1,6 @@
 import tweepy
 import urllib2
+from PIL import Image
 
 from credentials import (consumer_key,
                          consumer_secret,
@@ -10,19 +11,18 @@ from credentials import (consumer_key,
 class PatternellaStreamListener(tweepy.StreamListener):
 
     def on_status(self, status):
-        sender = status.user.screen_name
+        sender = status.author.screen_name
         try:
-            print "I got an image"
             photo_url = status.extended_entities['media'][0]['media_url']
             photo = Image.open(urllib2.urlopen(photo_url))
             photo.save('random.jpg')
             # style = status.entities['hashtags'][0]
             tweet = "@{sender} Here you go!".format(sender=sender)
-            api.update_with_media('/data/projects/tensorflow-fast-style-transfer/model/result_15000.jpg', status=tweet)
+            api.update_with_media('/data/projects/patternella/random.jpg', status=tweet)
         except:
-            print "I didn't get an image"
             tweet = "@{sender} Please tweet me with the image you'd like cutened!".format(sender=sender)
             api.update_status(status=tweet)
+        print tweet
 
 
 auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
