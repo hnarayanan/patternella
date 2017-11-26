@@ -22,6 +22,11 @@ class PatternellaStreamListener(tweepy.StreamListener):
         try:
             photo_id = status.extended_entities['media'][0]['id_str']
             photo_url = status.extended_entities['media'][0]['media_url']
+            has_photo = True
+        except:
+            has_photo = False
+
+        if has_photo:
             photo = Image.open(urllib2.urlopen(photo_url))
             photo.save('input/{photo_id}.png'.format(photo_id=photo_id))
 
@@ -29,17 +34,25 @@ class PatternellaStreamListener(tweepy.StreamListener):
             # style = status.entities['hashtags'][0]
             style = 'la_muse'
 
-            transformer = StyleTransferTester(
-                session=self.sess,
-                model_path='style_models/{style}.ckpt'.format(style=style),
-                content_image=photo,
-            )
-            transformed_photo = transformer.test()
-            photo.save('output/{photo_id}.png'.format(photo_id=photo_id))
+            try:
+                transformer = StyleTransferTester(
+                    session=self.sess,
+                    model_path='style_models/{style}.ckpt'.format(style=style),
+                    content_image=photo,
+                )
+                transformed_photo = transformer.test()
+                photo.save('output/{photo_id}.png'.format(photo_id=photo_id))
 
-            tweet = "@{sender} Here you go!".format(sender=sender)
-            self.api.update_with_media('output/{photo_id}.png'.format(photo_id=photo_id), status=tweet)
-        except:
+                tweet = "@{sender} Here you go!".format(sender=sender)
+                self.api.update_with_media('output/{photo_id}.png'.format(photo_id=photo_id), status=tweet)
+            except:
+                tweet = "@{sender} I'm sorry. Something went wrong with cutening your photo.".format(sender=sender)
+                try:
+                    self.api.update_status(status=tweet)
+                except tweepy.error.TweepError:
+                    # TODO: This should be better logged
+                    pass
+        else:
             tweet = "@{sender} Please tweet me with the image you'd like cutened!".format(sender=sender)
             try:
                 self.api.update_status(status=tweet)
